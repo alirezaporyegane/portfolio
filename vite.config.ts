@@ -7,14 +7,15 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+      '@': path.resolve(__dirname, './src'),
+      'img': path.resolve(__dirname, './public/img')
+    }
   },
   server: {
-    port: 8080,
+    port: 8080
   },
   mode: process.env.NODE_ENV,
   define: {
-    __APP_VERSION__: JSON.stringify("v1.0.0"),
-  },
-});
+    __APP_VERSION__: JSON.stringify('v1.0.0')
+  }
+})

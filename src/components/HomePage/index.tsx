@@ -3,7 +3,7 @@ import MainContent from "@/components/MainContent";
 
 function HomePage() {
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col overflow-x-hidden">
       <Header />
 
       <main className="bg-[#161513] h-full">
