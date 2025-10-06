@@ -1,0 +1,73 @@
+name: 1 - production deploy Portfolio
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        type: choice
+        options:
+          - main
+        default: main
+      confirm:
+        description: "Type 'yes' to confirm deployment"
+        type: choice
+        options:
+          - yes
+        default: yes
+        required: true
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: build docker image
+        run: |
+          docker build -t portfolio .
+          docker save portfolio -o portfolio.tar
+
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/prod
+          chmod 600 ~/.ssh/prod
+
+      - name: Deploy to prod-server
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/prod -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }}" portfolio.tar ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/srv/web-v2/
+          rsync -avz -e "ssh -i ~/.ssh/prod -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }}" docker-compose.yml ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/srv/web-v2/
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/prod
+          chmod 600 ~/.ssh/prod
+
+      - name: load image
+        run: |
+          ssh -i ~/.ssh/prod -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd /srv/portfolio
+            docker stop portfolio|| true
+            docker rm -f portfolio || true
+            docker tag portfolio portfolio-old || true
+            docker load -i portfolio.tar
+            docker rmi -f portfolio-old || true
+            rm -rf portfolio.tar
+
+      - name: run image
+        run: |
+          ssh -i ~/.ssh/prod -o StrictHostKeyChecking=no -p ${{ secrets.SERVER_PORT }} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            cd /srv/portfolio
+            docker compose up -d --force-recreate
+          EOF
